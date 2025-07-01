@@ -1,0 +1,108 @@
+---
+// 🚀 ISR Configuration: Regenerar cada 10 minutos
+export const prerender = false;
+
+// Configuración ISR para Vercel
+export const experimental_revalidate = 600; // 10 minutos
+
+import Layout from "../layouts/Layout.astro";
+import ProductsGrid from "../components/ProductsGrid.astro";
+import ErrorMessage from "../components/ErrorMessage.astro";
+import LoadingSpinner from "../components/LoadingSpinner.astro";
+import { TiendaNubeService } from "../services/tiendanube";
+import { config, validateConfig } from "../config/index";
+import type { Product } from "../types/tiendanube";
+
+// Validar configuración
+const configValidation = validateConfig();
+
+let products: Product[] = [];
+let error: string | null = null;
+let isLoading = false;
+let lastUpdated = new Date().toISOString();
+
+// Solo intentar cargar productos si la configuración es válida
+if (configValidation.isValid) {
+  try {
+    isLoading = true;
+    const tiendaNubeService = new TiendaNubeService(config.tiendaNube);
+    products = await tiendaNubeService.getProducts(
+      1,
+      config.app.productsPerPage
+    );
+  } catch (e) {
+    console.error("Error loading products:", e);
+    error =
+      e instanceof Error ? e.message : "Error desconocido al cargar productos";
+  } finally {
+    isLoading = false;
+  }
+} else {
+  error = `Configuración incompleta: ${configValidation.errors.join(", ")}`;
+}
+---
+
+<Layout
+  title={config.app.title}
+  description="Descubre nuestra colección de productos de Tienda Nube"
+  headerTitle={config.app.title}
+  headerSubtitle={config.app.subtitle}
+>
+  <div class="update-info">
+    <div class="container">
+      <p>
+        ⚡ <strong>Auto-actualización:</strong> Los productos se actualizan automáticamente
+        cada 10 minutos | Última actualización:{" "}
+        {new Date(lastUpdated).toLocaleString("es-AR")}
+      </p>
+    </div>
+  </div>
+
+  <div class="container">
+    {
+      error ? (
+        <div class="error-container">
+          <div class="error-icon">⚠️</div>
+          <h2>Error de configuración</h2>
+          <p>
+            No se pudieron cargar los productos desde la API de Tienda Nube.
+          </p>
+          <div class="error-details">{error}</div>
+        </div>
+      ) : isLoading ? (
+        <div class="loading">Cargando productos...</div>
+      ) : (
+        <ProductsGrid products={products} title="Nuestros Productos" />
+      )
+    }
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2025 Tienda Nube Products Demo. Powered by Astro.js</p>
+    </div>
+  </footer>
+
+  <style slot="head">
+    .site-footer {
+      background: #2c3e50;
+      color: #ecf0f1;
+      text-align: center;
+      padding: 40px 0;
+      margin-top: 60px;
+    }
+
+    .site-footer p {
+      margin: 0;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+      .site-footer {
+        padding: 30px 0;
+        margin-top: 40px;
+      }
+    }
+  </style>
+</Layout>

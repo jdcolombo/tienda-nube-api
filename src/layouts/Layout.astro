@@ -1,0 +1,384 @@
+---
+import Navigation from "../components/Navigation.astro";
+import Header from "../components/Header.astro";
+import CartSidebar from "../components/CartSidebar.astro";
+
+export interface Props {
+  title: string;
+  description?: string;
+  headerTitle?: string;
+  headerSubtitle?: string;
+}
+
+const {
+  title,
+  description = "Descubre nuestra colección de productos de Tienda Nube",
+  headerTitle,
+  headerSubtitle,
+} = Astro.props;
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+
+    <!-- Preload fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Global Styles -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      body {
+        line-height: 1.6;
+        color: #2c3e50;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      main {
+        flex: 1;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      /* Update info banner styles */
+      .update-info {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        text-align: center;
+        padding: 10px 0;
+        font-size: 0.9rem;
+      }
+
+      .update-info p {
+        margin: 0;
+      }
+
+      .update-info strong {
+        font-weight: 600;
+      }
+
+      /* Utility classes */
+      .loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+        font-size: 1.1rem;
+      }
+
+      .error-container {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 40px;
+      }
+
+      .error-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+      }
+
+      .error-container h2 {
+        color: #e74c3c;
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+      }
+
+      .error-container p {
+        color: #6c757d;
+        margin-bottom: 10px;
+        line-height: 1.6;
+      }
+
+      .error-container .error-details {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        text-align: left;
+        font-family: "Courier New", monospace;
+        font-size: 0.9rem;
+        color: #495057;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .container {
+          padding: 15px;
+        }
+
+        .update-info {
+          font-size: 0.8rem;
+          padding: 8px 0;
+        }
+
+        .error-container {
+          padding: 40px 15px;
+        }
+      }
+    </style>
+
+    <!-- Slot para estilos adicionales específicos de cada página -->
+    <slot name="head" />
+  </head>
+  <body>
+    <!-- Script del carrito client-side inline -->
+    <script>
+      // Cart Store Implementation
+      (function () {
+        "use strict";
+
+        class CartStore {
+          constructor() {
+            this.storageKey = "tiendanube-cart";
+            this.cart = {
+              items: [],
+              total: 0,
+              itemCount: 0,
+            };
+            this.loadFromStorage();
+          }
+
+          loadFromStorage() {
+            try {
+              const stored = localStorage.getItem(this.storageKey);
+              if (stored) {
+                this.cart = JSON.parse(stored);
+                this.calculateTotals();
+              }
+            } catch (error) {
+              console.error("Error loading cart from storage:", error);
+              this.cart = { items: [], total: 0, itemCount: 0 };
+            }
+          }
+
+          saveToStorage() {
+            try {
+              localStorage.setItem(this.storageKey, JSON.stringify(this.cart));
+            } catch (error) {
+              console.error("Error saving cart to storage:", error);
+            }
+          }
+
+          calculateTotals() {
+            this.cart.itemCount = this.cart.items.reduce(
+              (total, item) => total + item.quantity,
+              0
+            );
+            this.cart.total = this.cart.items.reduce(
+              (total, item) => total + item.price * item.quantity,
+              0
+            );
+          }
+
+          addItem(productId, variant, productName, productImage, quantity = 1) {
+            const existingItemIndex = this.cart.items.findIndex(
+              (item) => item.variantId === variant.id
+            );
+
+            const price = variant.promotional_price
+              ? parseFloat(variant.promotional_price)
+              : parseFloat(variant.price);
+
+            const comparePrice = variant.compare_at_price
+              ? parseFloat(variant.compare_at_price)
+              : undefined;
+
+            if (existingItemIndex >= 0) {
+              this.cart.items[existingItemIndex].quantity += quantity;
+            } else {
+              const newItem = {
+                id: `${productId}-${variant.id}`,
+                productId,
+                variantId: variant.id,
+                name: productName,
+                image: productImage,
+                price,
+                comparePrice,
+                quantity,
+                variant,
+              };
+              this.cart.items.push(newItem);
+            }
+
+            this.calculateTotals();
+            this.saveToStorage();
+
+            window.dispatchEvent(
+              new CustomEvent("cartUpdated", {
+                detail: this.cart,
+              })
+            );
+          }
+
+          updateQuantity(variantId, quantity) {
+            const itemIndex = this.cart.items.findIndex(
+              (item) => item.variantId === variantId
+            );
+
+            if (itemIndex >= 0) {
+              if (quantity <= 0) {
+                this.removeItem(variantId);
+              } else {
+                this.cart.items[itemIndex].quantity = quantity;
+                this.calculateTotals();
+                this.saveToStorage();
+
+                window.dispatchEvent(
+                  new CustomEvent("cartUpdated", {
+                    detail: this.cart,
+                  })
+                );
+              }
+            }
+          }
+
+          removeItem(variantId) {
+            this.cart.items = this.cart.items.filter(
+              (item) => item.variantId !== variantId
+            );
+            this.calculateTotals();
+            this.saveToStorage();
+
+            window.dispatchEvent(
+              new CustomEvent("cartUpdated", {
+                detail: this.cart,
+              })
+            );
+          }
+
+          clear() {
+            this.cart = { items: [], total: 0, itemCount: 0 };
+            this.saveToStorage();
+
+            window.dispatchEvent(
+              new CustomEvent("cartUpdated", {
+                detail: this.cart,
+              })
+            );
+          }
+
+          getCart() {
+            return { ...this.cart };
+          }
+
+          getItemQuantity(variantId) {
+            const item = this.cart.items.find(
+              (item) => item.variantId === variantId
+            );
+            return item ? item.quantity : 0;
+          }
+
+          hasItem(variantId) {
+            return this.cart.items.some((item) => item.variantId === variantId);
+          }
+        }
+
+        // Inicializar inmediatamente
+        console.log("Inicializando cart store...");
+        window.cartStore = new CartStore();
+        console.log("Cart store inicializado:", window.cartStore);
+      })();
+    </script>
+
+    <Navigation />
+
+    {headerTitle && <Header title={headerTitle} subtitle={headerSubtitle} />}
+
+    <main>
+      <slot />
+    </main>
+
+    <CartSidebar />
+
+    <!-- Slot para scripts específicos de cada página -->
+    <slot name="scripts" />
+
+    <!-- Script global para actualizar contador del carrito -->
+    <script>
+      // Función para actualizar el contador del carrito
+      function updateCartCount() {
+        try {
+          if (window.cartStore) {
+            const cart = window.cartStore.getCart();
+            const cartCountElement = document.getElementById("cart-count");
+            if (cartCountElement) {
+              cartCountElement.textContent = cart.itemCount || 0;
+              if (cart.itemCount > 0) {
+                cartCountElement.style.display = "inline-block";
+                cartCountElement.classList.add("has-items");
+              } else {
+                cartCountElement.style.display = "none";
+                cartCountElement.classList.remove("has-items");
+              }
+            }
+          } else {
+            // Fallback al localStorage si cartStore no está disponible
+            const cartData = localStorage.getItem("tiendanube-cart");
+            const cart = cartData ? JSON.parse(cartData) : { itemCount: 0 };
+            const cartCountElement = document.getElementById("cart-count");
+            if (cartCountElement) {
+              cartCountElement.textContent = cart.itemCount || 0;
+              if (cart.itemCount > 0) {
+                cartCountElement.style.display = "inline-block";
+                cartCountElement.classList.add("has-items");
+              } else {
+                cartCountElement.style.display = "none";
+                cartCountElement.classList.remove("has-items");
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error updating cart count:", error);
+        }
+      }
+
+      // Actualizar contador al cargar la página
+      document.addEventListener("DOMContentLoaded", function () {
+        // Dar tiempo a que se cargue el script del carrito
+        setTimeout(updateCartCount, 100);
+      });
+
+      // Escuchar cambios en localStorage (para actualizaciones entre pestañas)
+      window.addEventListener("storage", function (e) {
+        if (e.key === "tiendanube-cart") {
+          updateCartCount();
+        }
+      });
+
+      // Actualizar contador cada vez que cambie el carrito
+      window.addEventListener("cartUpdated", updateCartCount);
+    </script>
+  </body>
+</html>

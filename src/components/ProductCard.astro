@@ -1,0 +1,253 @@
+---
+import type { Product } from "../types/tiendanube";
+
+export interface Props {
+  product: Product;
+}
+
+const { product } = Astro.props;
+
+// Función helper para obtener el texto en el idioma principal
+function getLocalizedText(
+  text: string | { [key: string]: string },
+  fallback = ""
+): string {
+  if (typeof text === "string") return text;
+  if (typeof text === "object" && text !== null) {
+    // Priorizar español, luego inglés, luego cualquier idioma disponible
+    return text.es || text.en || Object.values(text)[0] || fallback;
+  }
+  return fallback;
+}
+
+// Obtener la primera imagen del producto
+const primaryImage =
+  product.images && product.images.length > 0 ? product.images[0] : null;
+
+// Obtener el precio del primer variant
+const primaryVariant =
+  product.variants && product.variants.length > 0 ? product.variants[0] : null;
+
+// Lógica de precios:
+// 1. Si hay promotional_price, ese es el precio actual (más bajo)
+// 2. Si no hay promotional_price, usar el precio normal
+// 3. compare_at_price es el precio tachado (más alto)
+
+const currentPrice = primaryVariant?.promotional_price
+  ? parseFloat(primaryVariant.promotional_price)
+  : primaryVariant?.price
+    ? parseFloat(primaryVariant.price)
+    : null;
+
+const comparePrice = primaryVariant?.compare_at_price
+  ? parseFloat(primaryVariant.compare_at_price)
+  : null;
+
+// Calcular descuento si hay precio de comparación
+const discount =
+  comparePrice && currentPrice && comparePrice > currentPrice
+    ? Math.round(((comparePrice - currentPrice) / comparePrice) * 100)
+    : null;
+---
+
+<article class="product-card">
+  <a href={`/products/${product.id}`} class="product-link">
+    <div class="product-image-container">
+      {
+        primaryImage ? (
+          <img
+            src={primaryImage.src}
+            alt={getLocalizedText(product.name, "Producto")}
+            class="product-image"
+            loading="lazy"
+          />
+        ) : (
+          <div class="product-image-placeholder">
+            <span>Sin imagen</span>
+          </div>
+        )
+      }
+
+      {discount && <span class="discount-badge">-{discount}%</span>}
+    </div>
+
+    <div class="product-info">
+      <h3 class="product-name">
+        {getLocalizedText(product.name, "Producto sin nombre")}
+      </h3>
+
+      {
+        product.description && (
+          <p class="product-description">
+            {getLocalizedText(product.description, "").slice(0, 100)}
+            {getLocalizedText(product.description, "").length > 100
+              ? "..."
+              : ""}
+          </p>
+        )
+      }
+
+      <div class="product-pricing">
+        {
+          currentPrice && (
+            <span class="current-price">
+              ${currentPrice.toLocaleString("es-AR")}
+            </span>
+          )
+        }
+
+        {
+          comparePrice && comparePrice > (currentPrice || 0) && (
+            <span class="compare-price">
+              ${comparePrice.toLocaleString("es-AR")}
+            </span>
+          )
+        }
+      </div>
+
+      {
+        product.free_shipping && (
+          <span class="free-shipping-badge">Envío gratis</span>
+        )
+      }
+
+      primaryVariant?.stock !== null && primaryVariant?.stock !== undefined && (
+      <div class="stock-info">
+        {
+          primaryVariant?.stock && primaryVariant.stock > 0 ? (
+            <span class="in-stock">Stock: {primaryVariant.stock}</span>
+          ) : (
+            <span class="out-of-stock">Sin stock</span>
+          )
+        }
+      </div>
+      ) }
+    </div>
+  </a>
+</article>
+
+<style>
+  .product-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .product-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .product-image-container {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+  }
+
+  .product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .product-image-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+
+  .discount-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #e74c3c;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .product-info {
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .product-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+  }
+
+  .product-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0 0 12px 0;
+    flex: 1;
+  }
+
+  .product-pricing {
+    margin: 8px 0;
+  }
+
+  .current-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2c3e50;
+  }
+
+  .compare-price {
+    font-size: 1rem;
+    color: #6c757d;
+    text-decoration: line-through;
+    margin-left: 8px;
+  }
+
+  .free-shipping-badge {
+    background: #27ae60;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: inline-block;
+    margin: 8px 0;
+  }
+
+  .stock-info {
+    margin-top: auto;
+    padding-top: 8px;
+  }
+
+  .in-stock {
+    color: #27ae60;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .out-of-stock {
+    color: #e74c3c;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+</style>

@@ -1,0 +1,222 @@
+---
+// Componente de navegación con carrito
+---
+
+<nav class="main-nav">
+  <div class="nav-container">
+    <div class="nav-brand">
+      <a href="/" class="brand-link">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 3H5L5.4 5M7 13H17L21 5H5.4M7 13L5.4 5M7 13L4.7 15.3C4.3 15.7 4.6 16.5 5.1 16.5H17M17 13V17C17 18.1 16.1 19 15 19H9C7.9 19 7 18.1 7 17V13M17 13C18.1 13 19 13.9 19 15S18.1 17 17 17"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+        <span>Tienda Nube</span>
+      </a>
+    </div>
+
+    <div class="nav-links">
+      <a href="/" class="nav-link">Productos</a>
+      <button class="cart-link" onclick="openCartSidebar()">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 3H5L5.4 5M7 13H17L21 5H5.4M7 13L5.4 5M7 13L4.7 15.3C4.3 15.7 4.6 16.5 5.1 16.5H17M17 13V17C17 18.1 16.1 19 15 19H9C7.9 19 7 18.1 7 17V13"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+        <span class="cart-text">Carrito</span>
+        <span class="cart-count" id="cart-count">0</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<style>
+  .main-nav {
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 70px;
+  }
+
+  .nav-brand {
+    display: flex;
+    align-items: center;
+  }
+
+  .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1.2rem;
+    transition: color 0.2s ease;
+  }
+
+  .brand-link:hover {
+    color: #667eea;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .nav-link {
+    text-decoration: none;
+    color: #2c3e50;
+    font-weight: 500;
+    transition: color 0.2s ease;
+    padding: 8px 12px;
+    border-radius: 6px;
+  }
+
+  .nav-link:hover {
+    color: #667eea;
+    background-color: #f8f9fa;
+  }
+
+  .cart-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 2px solid #e9ecef;
+    color: #2c3e50;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  .cart-link:hover {
+    color: #667eea;
+    border-color: #667eea;
+    background-color: #f8f9fa;
+  }
+
+  .cart-count {
+    background: #dc3545;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 12px;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1.2;
+    display: none;
+  }
+
+  .cart-count.has-items {
+    display: inline-block;
+  }
+
+  @media (max-width: 768px) {
+    .nav-container {
+      padding: 0 15px;
+      height: 60px;
+    }
+
+    .nav-links {
+      gap: 16px;
+    }
+
+    .cart-text {
+      display: none;
+    }
+
+    .nav-link {
+      padding: 6px 8px;
+      font-size: 0.9rem;
+    }
+
+    .cart-link {
+      padding: 6px 12px;
+    }
+
+    .brand-link {
+      font-size: 1.1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .nav-links {
+      gap: 12px;
+    }
+
+    .nav-link:not(.cart-link) {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  // Actualizar contador del carrito
+  function updateCartCount() {
+    try {
+      const cartData = localStorage.getItem("tiendanube-cart");
+      const cart = cartData ? JSON.parse(cartData) : { itemCount: 0 };
+      const countElement = document.getElementById("cart-count");
+
+      if (countElement) {
+        countElement.textContent = cart.itemCount || "0";
+        if (cart.itemCount > 0) {
+          countElement.classList.add("has-items");
+        } else {
+          countElement.classList.remove("has-items");
+        }
+      }
+    } catch (error) {
+      console.error("Error updating cart count:", error);
+    }
+  }
+
+  // Actualizar al cargar la página
+  document.addEventListener("DOMContentLoaded", updateCartCount);
+
+  // Escuchar cambios en el localStorage
+  window.addEventListener("storage", (event) => {
+    if (event.key === "tiendanube-cart") {
+      updateCartCount();
+    }
+  });
+
+  // Actualizar cada segundo para detectar cambios en la misma página
+  setInterval(updateCartCount, 1000);
+</script>

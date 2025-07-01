@@ -1,0 +1,203 @@
+---
+// Componente de notificación toast para feedback visual
+// Se puede usar para confirmar acciones del carrito
+
+export interface Props {
+  message: string;
+  type?: "success" | "error" | "info" | "warning";
+  duration?: number;
+}
+
+const { message, type = "info", duration = 3000 } = Astro.props;
+---
+
+<div class={`toast toast-${type}`} id="toast-notification">
+  <div class="toast-content">
+    <div class="toast-icon">
+      {type === "success" && "✅"}
+      {type === "error" && "❌"}
+      {type === "warning" && "⚠️"}
+      {type === "info" && "ℹ️"}
+    </div>
+    <span class="toast-message">{message}</span>
+    <button class="toast-close" onclick="hideToast()">&times;</button>
+  </div>
+</div>
+
+<style>
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    min-width: 300px;
+    max-width: 400px;
+  }
+
+  .toast.show {
+    transform: translateX(0);
+  }
+
+  .toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .toast-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .toast-message {
+    flex: 1;
+    color: #2c3e50;
+    font-weight: 500;
+  }
+
+  .toast-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6c757d;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .toast-close:hover {
+    background-color: #f8f9fa;
+  }
+
+  .toast-success {
+    border-left: 4px solid #27ae60;
+  }
+
+  .toast-error {
+    border-left: 4px solid #dc3545;
+  }
+
+  .toast-warning {
+    border-left: 4px solid #f39c12;
+  }
+
+  .toast-info {
+    border-left: 4px solid #3498db;
+  }
+
+  @media (max-width: 768px) {
+    .toast {
+      top: 10px;
+      right: 10px;
+      left: 10px;
+      min-width: auto;
+      max-width: none;
+    }
+  }
+</style>
+
+<script define:vars={{ duration }}>
+  function showToast() {
+    const toast = document.getElementById("toast-notification");
+    if (toast) {
+      toast.classList.add("show");
+
+      // Auto-hide después del duration especificado
+      setTimeout(() => {
+        hideToast();
+      }, duration);
+    }
+  }
+
+  function hideToast() {
+    const toast = document.getElementById("toast-notification");
+    if (toast) {
+      toast.classList.remove("show");
+    }
+  }
+
+  // Mostrar automáticamente al cargar
+  document.addEventListener("DOMContentLoaded", showToast);
+
+  // Función global para mostrar toasts desde cualquier parte
+  window.showToast = function (message, type = "info", duration = 3000) {
+    // Crear toast dinámicamente
+    const existingToast = document.getElementById("toast-notification");
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    const toast = document.createElement("div");
+    toast.id = "toast-notification";
+    toast.className = `toast toast-${type}`;
+
+    const icons = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️",
+    };
+
+    toast.innerHTML = `
+      <div class="toast-content">
+        <div class="toast-icon">${icons[type] || icons.info}</div>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="hideToast()">&times;</button>
+      </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Aplicar estilos manualmente ya que están en el componente
+    Object.assign(toast.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      background: "white",
+      borderRadius: "8px",
+      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+      transform: "translateX(100%)",
+      transition: "transform 0.3s ease",
+      zIndex: "1000",
+      minWidth: "300px",
+      maxWidth: "400px",
+      borderLeft: `4px solid ${
+        type === "success"
+          ? "#27ae60"
+          : type === "error"
+            ? "#dc3545"
+            : type === "warning"
+              ? "#f39c12"
+              : "#3498db"
+      }`,
+    });
+
+    // Mostrar toast
+    setTimeout(() => {
+      toast.style.transform = "translateX(0)";
+    }, 100);
+
+    // Auto-hide
+    setTimeout(() => {
+      toast.style.transform = "translateX(100%)";
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }, duration);
+  };
+</script>

@@ -1,0 +1,506 @@
+---
+import type { Product } from "../../types/tiendanube";
+import { TiendaNubeService } from "../../services/tiendanube";
+import { config, validateConfig } from "../../config/index";
+import Layout from "../../layouts/Layout.astro";
+import ErrorMessage from "../../components/ErrorMessage.astro";
+
+// Para renderizado del servidor, obtenemos el producto dinámicamente
+const { id } = Astro.params;
+
+let product: Product | null = null;
+let error: string | null = null;
+
+// Validar configuración
+const configValidation = validateConfig();
+
+if (!id) {
+  error = "ID del producto no especificado";
+} else if (!configValidation.isValid) {
+  error = `Configuración incompleta: ${configValidation.errors.join(", ")}`;
+} else {
+  try {
+    const tiendaNubeService = new TiendaNubeService(config.tiendaNube);
+    product = await tiendaNubeService.getProduct(parseInt(id));
+  } catch (e) {
+    console.error("Error loading product:", e);
+    error = e instanceof Error ? e.message : "Error desconocido al cargar el producto";
+  }
+}
+
+// Función helper para obtener texto localizado
+function getLocalizedText(
+  text: string | { [key: string]: string },
+  fallback = ""
+): string {
+  if (typeof text === "string") return text;
+  if (typeof text === "object" && text !== null) {
+    return text.es || text.en || Object.values(text)[0] || fallback;
+  }
+  return fallback;
+}
+
+// Solo procesar variant si el producto existe
+const primaryVariant = product?.variants?.[0];
+const currentPrice = primaryVariant?.promotional_price
+  ? parseFloat(primaryVariant.promotional_price)
+  : primaryVariant?.price
+    ? parseFloat(primaryVariant.price)
+    : null;
+
+const comparePrice = primaryVariant?.compare_at_price
+  ? parseFloat(primaryVariant.compare_at_price)
+  : null;
+
+const discount =
+  comparePrice && currentPrice && comparePrice > currentPrice
+    ? Math.round(((comparePrice - currentPrice) / comparePrice) * 100)
+    : null;
+---
+
+<Layout
+  title={product ? `${getLocalizedText(product.name)} - Tienda Nube` : "Error - Tienda Nube"}
+  description={product ? getLocalizedText(product.description, "").slice(0, 160) : "Error cargando producto"}
+>
+  <div class="container">
+    <a href="/" class="back-link"> ← Volver a productos </a>
+
+    {error ? (
+      <ErrorMessage message={error} />
+    ) : product ? (
+      <div class="product-detail">
+        <div class="product-grid">
+          <!-- Imágenes del producto -->
+          <div class="product-images">
+            <div class="main-image-container">
+              {
+                product.images && product.images.length > 0 ? (
+                  <img
+                    id="main-image"
+                    src={product.images[0].src}
+                    alt={getLocalizedText(product.name)}
+                    class="main-image"
+                  />
+                ) : (
+                  <div class="no-image">Sin imagen disponible</div>
+                )
+              }
+            </div>
+
+            {
+              product.images && product.images.length > 1 && (
+                <div class="thumbnail-container">
+                  {product.images.map((image, index) => (
+                    <img
+                      src={image.src}
+                      alt={`${getLocalizedText(product.name)} - imagen ${index + 1}`}
+                      class="thumbnail"
+                      data-index={index}
+                    />
+                  ))}
+                </div>
+              )
+            }
+          </div>
+
+          <!-- Información del producto -->
+          <div class="product-info">
+            {product.brand && <div class="product-brand">{product.brand}</div>}
+            <h1 class="product-title">
+              {getLocalizedText(product.name, "Producto sin nombre")}
+            </h1>
+
+            <div class="product-price">
+              {currentPrice && (
+                <div class="price-container">
+                  <span class="current-price">${currentPrice.toFixed(2)}</span>
+                  {comparePrice && comparePrice > currentPrice && (
+                    <>
+                      <span class="compare-price">${comparePrice.toFixed(2)}</span>
+                      <span class="discount-badge">-{discount}%</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {
+              product.description && (
+                <div class="product-description">
+                  <h3>Descripción</h3>
+                  <div class="description-content">
+                    {getLocalizedText(product.description)}
+                  </div>
+                </div>
+              )
+            }
+
+            {
+              product.free_shipping && (
+                <div class="shipping-info">
+                  <span class="free-shipping">🚚 Envío gratis</span>
+                </div>
+              )
+            }
+
+            <div class="product-actions">
+              <button 
+                class="add-to-cart-btn" 
+                disabled={!primaryVariant?.stock || primaryVariant.stock <= 0}
+                onclick="addToCart()"
+              >
+                {primaryVariant?.stock && primaryVariant.stock > 0 ? "Agregar al carrito" : "Sin stock"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <ErrorMessage message="Producto no encontrado" />
+    )}
+  </div>
+
+  <style>
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #3498db;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .product-detail {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      margin: 20px 0;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      padding: 40px;
+    }
+
+    @media (max-width: 768px) {
+      .product-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 20px;
+      }
+    }
+
+    .product-images {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .main-image-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8f9fa;
+    }
+
+    .main-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .no-image {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background: #f0f0f0;
+      color: #666;
+      font-size: 18px;
+    }
+
+    .thumbnail-container {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .thumbnail {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.3s ease;
+    }
+
+    .thumbnail:hover,
+    .thumbnail.active {
+      border-color: #3498db;
+    }
+
+    .product-info {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .product-brand {
+      color: #666;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .product-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #2c3e50;
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .price-container {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .current-price {
+      font-size: 32px;
+      font-weight: 700;
+      color: #e74c3c;
+    }
+
+    .compare-price {
+      font-size: 20px;
+      color: #95a5a6;
+      text-decoration: line-through;
+    }
+
+    .discount-badge {
+      background: #e74c3c;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .product-description h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      font-size: 18px;
+    }
+
+    .description-content {
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .shipping-info {
+      padding: 15px;
+      background: #d5f4e6;
+      border-radius: 8px;
+      border-left: 4px solid #27ae60;
+    }
+
+    .free-shipping {
+      color: #27ae60;
+      font-weight: 600;
+    }
+
+    .add-to-cart-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      width: 100%;
+    }
+
+    .add-to-cart-btn:hover {
+      background: #2980b9;
+    }
+
+    .add-to-cart-btn:disabled {
+      background: #bdc3c7;
+      cursor: not-allowed;
+    }
+  </style>
+
+  <!-- Notificación del carrito -->
+  <div id="cart-notification" class="cart-notification">
+    ✅ Producto agregado al carrito
+  </div>
+
+  <script define:vars={{ product, primaryVariant }}>
+    console.log('Script cargado con datos del producto:', { product, primaryVariant });
+    
+    // Función para agregar al carrito
+    window.addToCart = async function() {
+      console.log('addToCart llamado');
+      
+      try {
+        // Verificar que tenemos los datos necesarios
+        if (!product || !primaryVariant) {
+          throw new Error('Datos del producto no disponibles');
+        }
+        
+        // Esperar a que el cartStore esté disponible (máximo 3 segundos)
+        let attempts = 0;
+        const maxAttempts = 30; // 30 intentos de 100ms = 3 segundos
+        
+        const waitForCartStore = () => {
+          return new Promise((resolve, reject) => {
+            const checkCartStore = () => {
+              attempts++;
+              if (window.cartStore) {
+                console.log('Cart store encontrado en intento:', attempts);
+                resolve(window.cartStore);
+              } else if (attempts >= maxAttempts) {
+                reject(new Error('Cart store no disponible después de 3 segundos'));
+              } else {
+                setTimeout(checkCartStore, 100);
+              }
+            };
+            checkCartStore();
+          });
+        };
+        
+        console.log('Esperando cart store...');
+        const cartStore = await waitForCartStore();
+        console.log('Cart store disponible:', cartStore);
+        
+        // Obtener imagen principal del producto
+        const productImage = product.images && product.images.length > 0 
+          ? product.images[0].src 
+          : undefined;
+        
+        // Obtener nombre localizado
+        const productName = typeof product.name === 'string' 
+          ? product.name 
+          : (product.name.es || product.name.en || Object.values(product.name)[0] || 'Producto');
+        
+        // Agregar producto al carrito
+        console.log('Agregando item al carrito...', {
+          productId: product.id,
+          variantId: primaryVariant.id,
+          productName,
+          productImage
+        });
+        
+        cartStore.addItem(
+          product.id,
+          primaryVariant,
+          productName,
+          productImage,
+          1
+        );
+        
+        console.log('Item agregado exitosamente');
+
+        // Mostrar notificación
+        showNotification();
+        
+        // Abrir sidebar automáticamente
+        setTimeout(() => {
+          if (window.openCartSidebar) {
+            console.log('Abriendo sidebar...');
+            window.openCartSidebar();
+          } else {
+            console.log('openCartSidebar no disponible');
+          }
+        }, 500);
+        
+        console.log('Producto agregado al carrito exitosamente');
+      } catch (error) {
+        console.error('Error al agregar al carrito:', error);
+        alert('Error al agregar el producto al carrito: ' + error.message);
+      }
+    };
+
+    // Mostrar notificación
+    function showNotification() {
+      const notification = document.getElementById('cart-notification');
+      if (notification) {
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 3000);
+      }
+    }
+
+    // Funcionalidad de thumbnails para cambiar imagen principal
+    document.addEventListener('DOMContentLoaded', function() {
+      const thumbnails = document.querySelectorAll('.thumbnail');
+      const mainImage = document.getElementById('main-image');
+      
+      if (thumbnails.length > 0 && mainImage && product && product.images) {
+        thumbnails.forEach((thumbnail, index) => {
+          thumbnail.addEventListener('click', function() {
+            // Actualizar imagen principal
+            mainImage.src = product.images[index].src;
+            
+            // Actualizar estado activo de thumbnails
+            thumbnails.forEach(t => t.classList.remove('active'));
+            thumbnail.classList.add('active');
+          });
+        });
+        
+        // Marcar primer thumbnail como activo
+        if (thumbnails[0]) {
+          thumbnails[0].classList.add('active');
+        }
+      }
+
+      // Debug: Verificar si cartStore está disponible al cargar
+      setTimeout(() => {
+        console.log('Cart store después de DOMContentLoaded:', window.cartStore);
+      }, 500);
+    });
+  </script>
+
+  <style>
+    .cart-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #27ae60;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      font-weight: 600;
+    }
+
+    .cart-notification.show {
+      transform: translateX(0);
+    }
+  </style>
+</Layout>
