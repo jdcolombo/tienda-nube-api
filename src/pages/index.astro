@@ -48,16 +48,6 @@ if (configValidation.isValid) {
   headerTitle={config.app.title}
   headerSubtitle={config.app.subtitle}
 >
-  <div class="update-info">
-    <div class="container">
-      <p>
-        ⚡ <strong>Auto-actualización:</strong> Los productos se actualizan automáticamente
-        cada 10 minutos | Última actualización:{" "}
-        {new Date(lastUpdated).toLocaleString("es-AR")}
-      </p>
-    </div>
-  </div>
-
   <div class="container">
     {
       error ? (
