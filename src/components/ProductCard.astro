@@ -111,17 +111,18 @@ const discount =
         )
       }
 
-      primaryVariant?.stock !== null && primaryVariant?.stock !== undefined && (
-      <div class="stock-info">
-        {
-          primaryVariant?.stock && primaryVariant.stock > 0 ? (
-            <span class="in-stock">Stock: {primaryVariant.stock}</span>
-          ) : (
-            <span class="out-of-stock">Sin stock</span>
+      {
+        primaryVariant?.stock !== null &&
+          primaryVariant?.stock !== undefined && (
+            <div class="stock-info">
+              {primaryVariant?.stock && primaryVariant.stock > 0 ? (
+                <span class="in-stock">Stock: {primaryVariant.stock}</span>
+              ) : (
+                <span class="out-of-stock">Sin stock</span>
+              )}
+            </div>
           )
-        }
-      </div>
-      ) }
+      }
     </div>
   </a>
 </article>
