@@ -78,12 +78,15 @@ const discount =
 
       {
         product.description && (
-          <p class="product-description">
-            {getLocalizedText(product.description, "").slice(0, 100)}
-            {getLocalizedText(product.description, "").length > 100
-              ? "..."
-              : ""}
-          </p>
+          <p
+            class="product-description"
+            set:html={
+              getLocalizedText(product.description, "").slice(0, 100) +
+              (getLocalizedText(product.description, "").length > 100
+                ? "..."
+                : "")
+            }
+          />
         )
       }
 
